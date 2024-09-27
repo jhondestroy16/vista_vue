@@ -1,58 +1,134 @@
+<!-- src/components/ProductList.vue -->
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
-  </div>
+  <template v-if="vista == 1">
+    <table border="1" cellpadding="10" cellspacing="0" align="center">
+      <thead>
+        <tr>
+          <th class="text-center">Nombre</th>
+          <th class="text-center">Categoría</th>
+          <th class="text-center">Precio Venta</th>
+          <th class="text-center">Cantidad en Stock</th>
+          <th class="text-center">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(product, index) in products" :key="index">
+          <td>{{ product.nombre }}</td>
+          <td>{{ product.category.category }}</td>
+          <td>{{ product.price }}</td>
+          <td>{{ product.stock }}</td>
+          <td>{{ product.active }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <button class="btn btn-success mt-4" @click="cambiarVista()">Crear Registro</button>
+  </template>
+  <template v-else>
+    <div>
+      <h2>Subir Archivo de Productos (.txt)</h2>
+      <form @submit.prevent="uploadFile">
+        <div>
+          <label for="file">Seleccionar archivo:</label>
+          <input type="file" id="file" @change="onFileChange" accept=".txt" />
+        </div>
+        <div>
+          <button type="submit">Subir Archivo</button>
+        </div>
+      </form>
+    </div>
+  </template>
 </template>
 
 <script>
+import ProductService from "../services/ProductService";
+import Swal from 'sweetalert2'
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
-}
-</script>
+  data() {
+    return {
+      selectedFile: null,
+      products: [],
+      vista: 1,
+      product: {
+        nombre: '',
+        categoryId: '',
+        price: 0,
+        stock: 0,
+        active: true
+      }
+    };
+  },
+  created() {
+    this.fetchProducts();
+  },
+  methods: {
+    cambiarVista() {
+      this.vista = 2;
+    },
+    volver() {
+      this.vista = 1;
+    },
+    fetchProducts() {
+      ProductService.getAll()
+        .then((response) => {
+          this.products = response.data;
+          console.log(this.products);
+        })
+        .catch((error) => {
+          console.error("Error al obtener productos:", error);
+        });
+    },
+    saveProduct() {
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
+      ProductService.create(this.product)
+        .then(() => {
+          Swal.fire({
+            title: 'Error!',
+            text: 'Do you want to continue',
+            icon: 'error',
+            confirmButtonText: 'Cool'
+          })
+          this.$emit("productCreated"); // Emite un evento para notificar al componente padre
+          this.resetForm();
+          this.vista = 1;
+          this.fetchProducts();
+        })
+        .catch((error) => {
+          console.error("Error al crear el producto:", error);
+        });
+    },
+    onFileChange(event) {
+      this.selectedFile = event.target.files[0];
+    },
+    uploadFile() {
+      if (!this.selectedFile) {
+        alert("Por favor selecciona un archivo");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+
+      // Llamar al servicio para subir el archivo
+      ProductService.uploadProducts(formData)
+        .then(() => {
+          alert("Archivo subido con éxito");
+          this.vista = 1;
+          this.fetchProducts();
+        })
+        .catch(error => {
+          console.error("Error al subir el archivo:", error);
+        });
+    }
+  },
+};
+</script>
 <style scoped>
-h3 {
-  margin: 40px 0 0;
+form {
+  display: flex;
+  flex-direction: column;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+
+div {
+  margin-bottom: 10px;
 }
 </style>
