@@ -1,7 +1,6 @@
-<!-- src/components/ProductList.vue -->
 <template>
   <template v-if="vista == 1">
-    <table border="1" cellpadding="10" cellspacing="0" align="center">
+    <table class="table table-hover">
       <thead>
         <tr>
           <th class="text-center">Nombre</th>
@@ -32,7 +31,7 @@
           <input type="file" id="file" @change="onFileChange" accept=".txt" />
         </div>
         <div>
-          <button type="submit">Subir Archivo</button>
+          <button type="submit" class="btn btn-success mt-4">Subir Archivo</button>
         </div>
       </form>
     </div>
@@ -81,13 +80,7 @@ export default {
 
       ProductService.create(this.product)
         .then(() => {
-          Swal.fire({
-            title: 'Error!',
-            text: 'Do you want to continue',
-            icon: 'error',
-            confirmButtonText: 'Cool'
-          })
-          this.$emit("productCreated"); // Emite un evento para notificar al componente padre
+          this.$emit("productCreated");
           this.resetForm();
           this.vista = 1;
           this.fetchProducts();
@@ -101,23 +94,76 @@ export default {
     },
     uploadFile() {
       if (!this.selectedFile) {
-        alert("Por favor selecciona un archivo");
+        Swal.fire({
+          title: 'Error!',
+          text: 'Por favor selecciona un archivo',
+          icon: 'error',
+          confirmButtonText: 'Aceptar'
+        })
         return;
       }
 
       const formData = new FormData();
       formData.append('file', this.selectedFile);
-
-      // Llamar al servicio para subir el archivo
-      ProductService.uploadProducts(formData)
-        .then(() => {
-          alert("Archivo subido con éxito");
-          this.vista = 1;
-          this.fetchProducts();
-        })
-        .catch(error => {
-          console.error("Error al subir el archivo:", error);
-        });
+      const swalWithBootstrapButtons = Swal.mixin({
+        customClass: {
+          confirmButton: "btn btn-success",
+          cancelButton: "btn btn-danger"
+        },
+        buttonsStyling: false
+      });
+      swalWithBootstrapButtons.fire({
+        title: "¿Esta Seguro?",
+        text: "Desea agregar estos registros",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Aceptar",
+        cancelButtonText: "Cancelar",
+        reverseButtons: true
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Llamar al servicio para subir el archivo
+          Swal.fire({
+            title: 'Cargando...',
+            text: 'Por favor espera mientras se completa el proceso',
+            icon: 'info',
+            allowOutsideClick: false, // Evita que se cierre al hacer clic fuera de la alerta
+            showConfirmButton: false, // Oculta el botón de confirmación
+            didOpen: () => {
+              Swal.showLoading(); // Muestra el ícono de carga
+            }
+          });
+          ProductService.uploadProducts(formData)
+            .then(() => {
+              Swal.close();
+              swalWithBootstrapButtons.fire({
+                title: "Exito",
+                text: "Archivo subido con éxito.",
+                icon: "success"
+              });
+              this.vista = 1;
+              this.fetchProducts();
+            })
+            .catch(error => {
+              Swal.fire({
+                title: 'Error!',
+                text: 'Error al guardar la información',
+                icon: 'error',
+                confirmButtonText: 'Aceptar'
+              })
+              console.error("Error al subir el archivo:", error);
+            });
+        } else if (
+          /* Read more about handling dismissals below */
+          result.dismiss === Swal.DismissReason.cancel
+        ) {
+          swalWithBootstrapButtons.fire({
+            title: "Cancelled",
+            text: "Your imaginary file is safe :)",
+            icon: "error"
+          });
+        }
+      });
     }
   },
 };
